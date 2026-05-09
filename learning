@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>인공지능 학습 체험 - 배곧해솔중학교</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+        
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+            background-color: #f0f4f8;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: pan-y;
+        }
+
+        .review-card {
+            cursor: grab;
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+            touch-action: none;
+            position: relative;
+            z-index: 10;
+        }
+
+        .review-card:active {
+            cursor: grabbing;
+            transform: scale(0.98);
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.4);
+        }
+
+        .drop-zone {
+            min-height: 120px;
+            transition: all 0.3s;
+        }
+
+        .drop-zone.drag-over {
+            background-color: #e0e7ff;
+            border-color: #6366f1;
+            transform: scale(1.01);
+        }
+
+        .hidden { display: none; }
+
+        .correct { border: 4px solid #10b981 !important; background-color: #ecfdf5 !important; }
+        .wrong { border: 4px solid #ef4444 !important; background-color: #fef2f2 !important; }
+
+        #password-modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        input, textarea { font-size: 16px !important; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex justify-center">
+    <!-- Password Modal -->
+    <div id="password-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl border-4 border-indigo-100">
+            <div class="text-center">
+                <div class="bg-indigo-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-3xl" id="modal-icon">🔒</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2" id="modal-title">선생님 확인이 필요합니다</h3>
+                <p class="text-gray-500 text-sm mb-6" id="modal-desc">비밀번호를 입력하세요.</p>
+                <input type="password" id="pw-input" pattern="\d*" inputmode="numeric" maxlength="4" placeholder="••••" class="w-full text-center text-2xl tracking-widest p-4 border-2 border-indigo-100 rounded-2xl focus:outline-none focus:border-indigo-50 mb-4 bg-gray-50">
+                <div class="flex gap-2">
+                    <button onclick="closeModal()" class="flex-1 px-4 py-4 bg-gray-100 text-gray-600 rounded-2xl font-bold active:bg-gray-200 transition">취소</button>
+                    <button onclick="verifyPassword()" class="flex-1 px-4 py-4 bg-indigo-600 text-white rounded-2xl font-bold active:bg-indigo-700 transition">확인</button>
+                </div>
+                <p id="pw-error" class="text-rose-500 text-xs mt-3 hidden">비밀번호가 틀렸습니다!</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-4xl w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-gray-100">
+        <!-- Header -->
+        <header class="bg-indigo-600 text-white p-8 text-center relative overflow-hidden">
+            <div class="relative z-10">
+                <h1 class="text-2xl md:text-3xl font-bold tracking-tight">🤖 인공지능 학습 체험 시뮬레이터</h1>
+                <p class="text-indigo-100 mt-2 font-medium">배곧해솔중학교 정보 활동</p>
+            </div>
+        </header>
+
+        <!-- Progress Stepper -->
+        <div class="flex justify-around bg-indigo-50 p-5 border-b border-indigo-100">
+            <div id="step-1-indicator" class="flex flex-col items-center text-indigo-600 font-bold">
+                <span class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center mb-1 shadow-md">1</span>
+                <span class="text-[11px]">군집(비지도)</span>
+            </div>
+            <div id="step-2-indicator" class="flex flex-col items-center text-gray-400">
+                <span class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center mb-1">2</span>
+                <span class="text-[11px]">분류(지도)</span>
+            </div>
+            <div id="step-3-indicator" class="flex flex-col items-center text-gray-400">
+                <span class="w-10 h-10 rounded-full bg-gray-300 text-white flex items-center justify-center mb-1">3</span>
+                <span class="text-[11px]">개념 정리</span>
+            </div>
+        </div>
+
+        <main class="p-6 md:p-10">
+            <!-- STEP 1: Clustering -->
+            <section id="section-1">
+                <div class="mb-8 bg-yellow-50 p-6 rounded-3xl border-l-8 border-yellow-400 shadow-sm">
+                    <h2 class="text-xl font-bold text-gray-800">1단계: 리뷰 그룹 묶어보기</h2>
+                    <p class="text-gray-600 text-sm mt-2 leading-relaxed font-medium">여러 가지 제품의 리뷰들을 읽고, 비슷해보이는 것들을 한 그룹으로 묶어보세요. 각각의 그룹이 어떤 특징을 가지고 있는지도 적어봅시다 :) </p>
+                </div>
+
+                <div id="review-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10 drop-zone border-2 border-transparent p-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <!-- 리뷰 카드가 동적으로 생성됨 -->
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded">그룹 A</span>
+                            <input type="text" id="group-a-name" placeholder="그룹 이름 입력" class="flex-1 p-2 border-b-2 border-indigo-100 focus:outline-none focus:border-indigo-400 font-bold text-indigo-700">
+                        </div>
+                        <textarea id="group-a-desc" placeholder="우리 모둠이 생각한 이 그룹의 특징은?" class="mb-3 p-3 text-sm bg-indigo-50/50 border border-indigo-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-200 h-20 resize-none"></textarea>
+                        <div id="group-a" class="drop-zone border-4 border-dashed border-indigo-100 rounded-[2rem] p-4 bg-indigo-50/30 flex flex-col gap-3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                            <p class="text-center text-indigo-300 text-xs py-10 pointer-events-none">리뷰를 클릭하거나 드래그</p>
+                        </div>
+                    </div>
+                    <div class="flex flex-col">
+                        <div class="flex items-center gap-2 mb-3">
+                            <span class="bg-teal-600 text-white text-xs font-bold px-2 py-1 rounded">그룹 B</span>
+                            <input type="text" id="group-b-name" placeholder="그룹 이름 입력" class="flex-1 p-2 border-b-2 border-teal-100 focus:outline-none focus:border-teal-400 font-bold text-teal-700">
+                        </div>
+                        <textarea id="group-b-desc" placeholder="우리 모둠이 생각한 이 그룹의 특징은?" class="mb-3 p-3 text-sm bg-teal-50/50 border border-teal-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-200 h-20 resize-none"></textarea>
+                        <div id="group-b" class="drop-zone border-4 border-dashed border-teal-100 rounded-[2rem] p-4 bg-teal-50/30 flex flex-col gap-3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                            <p class="text-center text-teal-300 text-xs py-10 pointer-events-none">리뷰를 클릭하거나 드래그</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-12 text-center">
+                    <button onclick="validateStep1()" class="w-full md:w-auto bg-indigo-600 text-white px-16 py-5 rounded-2xl font-bold shadow-xl active:bg-indigo-700 transition transform active:scale-95">1단계 활동 완료</button>
+                    <p id="step1-error" class="text-rose-500 text-sm mt-4 font-bold hidden">⚠️ 모든 리뷰를 분류하고, 각 그룹의 이름과 특징을 모두 작성해야 합니다!</p>
+                </div>
+            </section>
+
+            <!-- STEP 2: Classification -->
+            <section id="section-2" class="hidden">
+                <div class="mb-8 bg-blue-50 p-6 rounded-3xl border-l-8 border-blue-400">
+                    <h2 class="text-xl font-bold text-gray-800">2단계: 정해진 기준에 따라 분류하기</h2>
+                    <p class="text-gray-600 text-sm mt-2 leading-relaxed">선생님이 분류한 기준에 따랐을 때, 해당 데이터가 어디에 속하게 되는지 생각해봅시다.</p>
+                </div>
+
+                <div class="mb-10 p-6 bg-white border-2 border-indigo-100 rounded-[2rem] shadow-sm">
+                    <h3 class="font-bold text-indigo-800 flex items-center mb-6">📍 선생님의 분류 방법! </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-rose-50 p-5 rounded-2xl border border-rose-100">
+                            <strong class="text-rose-700 block text-lg mb-2">그룹 1: 리뷰형 광고</strong>
+                            <ul class="text-sm text-rose-600 space-y-1 list-disc ml-4 font-medium mb-3">
+                                <li>성분 및 가격 통계 수치 강조</li>
+                                <li>객관적인 지표(논문, 분석 결과) 언급</li>
+                                <li>구매를 유도하는 외부 사이트 링크 포함</li>
+                            </ul>
+                            <div class="mt-4 pt-3 border-t border-rose-200">
+                                <span class="text-[11px] font-bold text-rose-400 uppercase tracking-wider">포함된 훈련 데이터</span>
+                                <div id="train-list-ad" class="flex flex-wrap gap-1 mt-2"></div>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-50 p-5 rounded-2xl border border-emerald-100">
+                            <strong class="text-emerald-700 block text-lg mb-2">그룹 2: 실제 사용 리뷰</strong>
+                            <ul class="text-sm text-emerald-600 space-y-1 list-disc ml-4 font-medium mb-3">
+                                <li>개인이 직접 구매하고 사용한 경험</li>
+                                <li>주관적인 느낌(발림성, 맛, 향 등) 표현</li>
+                                <li>실제 느낀 장점과 단점이 공존함</li>
+                            </ul>
+                            <div class="mt-4 pt-3 border-t border-emerald-200">
+                                <span class="text-[11px] font-bold text-emerald-400 uppercase tracking-wider">포함된 훈련 데이터</span>
+                                <div id="train-list-real" class="flex flex-wrap gap-1 mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="test-container" class="flex flex-col items-center gap-6">
+                    <div id="active-test-card" class="w-full max-w-lg"></div>
+                    
+                    <div class="w-full max-w-lg bg-gray-50 p-5 rounded-2xl border border-gray-200">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">❓ 분류한 근거는 무엇인가요?</label>
+                        <textarea id="reason-input" placeholder="분류한 이유를 적어주세요..." class="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 h-24 resize-none bg-white"></textarea>
+                    </div>
+
+                    <div class="flex gap-4 w-full max-w-lg">
+                        <button id="btn-group-1" onclick="checkAnswer('리뷰형 광고')" class="bg-rose-500 text-white px-6 py-5 rounded-2xl font-bold flex-1 shadow-lg active:bg-rose-600 transition transform active:scale-95 text-lg">리뷰형 광고</button>
+                        <button id="btn-group-2" onclick="checkAnswer('실제 사용 리뷰')" class="bg-emerald-500 text-white px-6 py-5 rounded-2xl font-bold flex-1 shadow-lg active:bg-emerald-600 transition transform active:scale-95 text-lg">실제 사용 리뷰</button>
+                    </div>
+                </div>
+
+                <div id="result-area" class="mt-12 hidden text-center bg-indigo-50 p-10 rounded-[2.5rem] border-2 border-indigo-200">
+                    <h3 class="text-3xl font-bold text-indigo-600 mb-4">테스트 완료! 🎯</h3>
+                    <p id="final-score" class="text-gray-700 text-lg mb-8 font-medium"></p>
+                    <button onclick="openModal(2)" class="bg-indigo-600 text-white px-12 py-5 rounded-2xl font-bold shadow-md active:bg-indigo-700 transition">활동 마무리하기</button>
+                </div>
+            </section>
+
+            <!-- STEP 3: Report & Concept -->
+            <section id="section-3" class="hidden">
+                <!-- Activity Report -->
+                <div class="mb-10 bg-indigo-600 text-white p-8 rounded-[2.5rem] shadow-xl">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center">📊 나의 인공지능 학습 활동 보고서</h2>
+                    <div class="space-y-4 text-left">
+                        <div class="bg-indigo-500/30 p-5 rounded-2xl border border-indigo-400/50">
+                            <h3 class="font-bold text-indigo-100 mb-4 underline decoration-indigo-300 underline-offset-4">1단계 군집 활동 (비지도 학습)</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="bg-white/10 p-4 rounded-xl border border-white/10">
+                                    <p class="text-xs text-indigo-200 mb-1">그룹 A: <span id="report-a-name" class="font-bold text-white"></span></p>
+                                    <div id="report-a-list" class="flex flex-wrap gap-1 mb-2"></div>
+                                    <p id="report-a-desc" class="text-[12px] text-white/90 italic"></p>
+                                </div>
+                                <div class="bg-white/10 p-4 rounded-xl border border-white/10">
+                                    <p class="text-xs text-indigo-200 mb-1">그룹 B: <span id="report-b-name" class="font-bold text-white"></span></p>
+                                    <div id="report-b-list" class="flex flex-wrap gap-1 mb-2"></div>
+                                    <p id="report-b-desc" class="text-[12px] text-white/90 italic"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-indigo-500/30 p-5 rounded-2xl border border-indigo-400/50">
+                            <h3 class="font-bold text-indigo-100 mb-2 underline decoration-indigo-300 underline-offset-4">2단계 분류 활동 (지도 학습)</h3>
+                            <div id="report-classification-list" class="space-y-3 mt-3 text-sm"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Core Concept Definitions -->
+                <div class="space-y-6">
+                    <div class="bg-amber-50 border-2 border-amber-200 p-8 rounded-[2.5rem]">
+                        <h2 class="text-2xl font-bold text-amber-800 mb-8 flex items-center">💡 오늘 배운 핵심 개념 정리</h2>
+                        
+                        <div class="space-y-8 text-left">
+                            <!-- 지도 학습 -->
+                            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-amber-100">
+                                <h3 class="text-xl font-bold text-rose-600 flex items-center gap-2">
+                                    <span class="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center text-rose-600 text-sm">1</span>
+                                    지도학습 (Supervised Learning)
+                                </h3>
+                                <p class="text-gray-700 mt-4 font-medium leading-relaxed">
+                                    <span class="bg-rose-50 px-1 text-rose-700">정답이 있는 훈련 데이터</span>를 사용하여 데이터를 학습시키는 방법입니다.
+                                </p>
+                                <div class="mt-4 pl-4 border-l-4 border-rose-200 mb-8">
+                                    <p class="font-bold text-rose-800">✅ 분류 (Classification)</p>
+                                    <p class="text-sm text-gray-600 mt-1">입력 데이터가 미리 정의된 범주(그룹) 중 어느 것에 속하는지 결정하는 것을 말합니다.</p>
+                                </div>
+
+                                <!-- 지도학습 용어 (지도학습 박스 내부로 이동) -->
+                                <div class="mt-8 pt-6 border-t border-gray-100">
+                                    <h4 class="text-md font-bold text-blue-700 flex items-center gap-2 mb-5">
+                                        😊 분류 학습에서 사용되는 용어들!
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div class="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                            <h5 class="font-bold text-blue-800">🏷️ 레이블 (Label)</h5>
+                                            <p class="text-[13px] text-gray-600 mt-1">인공지능이 학습할 때 정답이 되는 데이터의 이름입니다. (예: 리뷰형 광고)</p>
+                                            <p class="text-[11px] text-blue-500 mt-2 font-medium">※ 레이블링: 데이터들에 이름을 붙이는 작업</p>
+                                        </div>
+                                        <div class="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                                            <h5 class="font-bold text-emerald-800">📚 훈련 데이터 (Training Data)</h5>
+                                            <p class="text-[13px] text-gray-600 mt-1">인공지능을 학습시키기 위해 사용하는 데이터 모음입니다.</p>
+                                        </div>
+                                        <div class="p-4 bg-orange-50 rounded-2xl border border-orange-100 md:col-span-2">
+                                            <h5 class="font-bold text-orange-800">🧪 테스트 데이터 (Test Data)</h5>
+                                            <p class="text-[13px] text-gray-600 mt-1">훈련이 끝난 인공지능의 성능(정확도)을 테스트하기 위해 사용하는 새로운 데이터입니다.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 비지도 학습 -->
+                            <div class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-emerald-100">
+                                <h3 class="text-xl font-bold text-emerald-600 flex items-center gap-2">
+                                    <span class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-sm">2</span>
+                                    비지도 학습 (Unsupervised Learning)
+                                </h3>
+                                <p class="text-gray-700 mt-4 font-medium leading-relaxed">
+                                    명시적인 정답 없이 데이터들을 <span class="bg-emerald-50 px-1 text-emerald-700">비슷한 속성끼리 스스로 묶는 것</span>을 말합니다.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reflection Prompt (박스 외부로 분리 및 수평 조절) -->
+                    <div class="mt-8 p-8 bg-indigo-600 rounded-[2.5rem] text-center shadow-2xl animate-fadeIn">
+                        <p class="text-white font-bold text-lg md:text-xl leading-relaxed">
+                            ✍️ 방금 활동에서 
+                            <span class="text-yellow-300 underline decoration-yellow-300 underline-offset-8">학습 데이터 / 훈련 데이터 / 레이블</span>이 <br class="hidden md:block">
+                            무엇이었는지 학습지에 정리해보자!
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        let activeTargetStep = 1;
+        const PW_STEP_1 = "0010";
+        const PW_STEP_2 = "0011";
+        const PW_CHEAT_3 = "1110"; // 바로 3단계로 점프하는 비밀번호
+
+        const reviews = [
+            { id: 1, title: "클렌징폼", icon: "🫧", text: "지난 6개월동안 직접 사용해 본 찐후기! 여러 개의 핵심 성분 모두를 포함하는 제품은 H사 제품밖에 없습니다. * 긴급 추가본 : 제발 문의를 그만해주세요. 문의가 폭주해 제품 링크를 걸어두었습니다.", type: "리뷰형 광고" },
+            { id: 2, title: "선크림", icon: "☀️", text: "A 기업에서 판매하는 선크림 중 가격과 용량을 비교해 제일 합리적인 것 같아 구매했습니다. 번들거림 없이 보송하고 밀착력은 좋았으나, 백탁 현상과 건조함이 드러나 별로였어요.", type: "실제 사용 리뷰" },
+            { id: 3, title: "베개", icon: "🛌", text: "베개는 거북목 교정, 코골이 예방 등에 반드시 필요합니다. 여러 가지 기준으로 제품들을 분석한 결과, 조건을 제품은 D사 제품 하나 뿐이었습니다. 직접 사용한 결과 매우 만족합니다. 문의가 폭주하여 링크를 걸어둡니다.", type: "리뷰형 광고" },
+            { id: 4, title: "보리굴비", icon: "🐟", text: "보리굴비를 잘 고르기 위해선 해풍에 건조했는지, 위생적으로 작업했는지 등을 보아야 합니다. 여러 업체를 비교해 보니, 이러한 조건을 만족하는 곳은 B사 밖에 없었습니다. 제품 링크는 공유하지 않겠습니다. * 긴급 추가 : 문의가 폭주해 링크를 걸어두니, 제발 그만 물어보세요.", type: "리뷰형 광고" },
+            { id: 5, title: "무좀연고", icon: "🧴", text: "6개월 사용 찐후기입니다. 무좀을 관리하기 위해선 다양한 성분들이 들어갔는지를 반드시 따져야 합니다. 직접 6개월간 사용한 결과, J사의 제품만이 이러한 조건을 만족했습니다. 제 포스팅 보시고 현명한 소비 하세요. * 긴급 추가 : 제발 그만 물어보세요. 해당 제품은 해당 링크에 있습니다.", type: "리뷰형 광고" },
+            { id: 6, title: "치킨", icon: "🍗", text: "전체적으로 부드러운 간장 베이스에 은은한 마늘 풍미가 더해진 느낌입니다. 덜 자극적이고 덜 물려서 맛있게 먹었어요. 하지만 이 가격에 다시 사먹을 지는 의문이네요.. ^^ 한 번쯤은 먹어볼 만 할 것 같아요.", type: "실제 사용 리뷰" }
+        ];
+
+        const testData = [
+            { title: "저당 음료", icon: "🥤", text: "다이어트 중이라 마셔봤는데 칼로리 부담이 없어 좋네요. 산뜻하고 가벼운 느낌입니다. 다만 얼음이 녹기 전에 빨리 드시는 걸 추천드려요.", answer: "실제 사용 리뷰" },
+            { title: "헤드폰", icon: "🎧", text: "디자인은 예쁜데 노이즈 캔슬링은 기대만큼 아니에요. 지하철 소음이 들립니다. 가격 대비 무난한 정도네요.", answer: "실제 사용 리뷰" },
+            { title: "젤리", icon: "🍬", text: "편의점에 새로 나온 젤리가 귀여워서 사봤어요. 모양은 만족스러운데 생각보다 너무 질기고, 달고 시어서 정신 없이 먹다가 금방 충치가 생길 수 있을 것 같네요.", answer: "실제 사용 리뷰" }
+        ];
+
+        let currentTestIdx = 0;
+        let score = 0;
+        let classificationResults = [];
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            const zone = ev.currentTarget;
+            if (zone.classList.contains('drop-zone')) {
+                zone.classList.add('drag-over');
+            }
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const targetZone = ev.currentTarget;
+            targetZone.classList.remove('drag-over');
+            const id = ev.dataTransfer.getData("text");
+            const dragged = document.getElementById(id);
+            if (!dragged || ev.target.closest('.review-card')) return;
+            if (targetZone.classList.contains('drop-zone')) {
+                targetZone.appendChild(dragged);
+                updateEmptyStatus();
+            }
+        }
+
+        function updateEmptyStatus() {
+            ['group-a', 'group-b', 'review-container'].forEach(id => {
+                const zone = document.getElementById(id);
+                if (!zone) return;
+                const p = zone.querySelector('p');
+                const cards = zone.querySelectorAll('.review-card');
+                if (p) p.style.display = cards.length > 0 ? 'none' : 'block';
+            });
+        }
+
+        function validateStep1() {
+            const remaining = document.getElementById('review-container').querySelectorAll('.review-card').length;
+            const aName = document.getElementById('group-a-name').value.trim();
+            const bName = document.getElementById('group-b-name').value.trim();
+            const aDesc = document.getElementById('group-a-desc').value.trim();
+            const bDesc = document.getElementById('group-b-desc').value.trim();
+            
+            if (remaining > 0 || !aName || !bName || !aDesc || !bDesc) {
+                document.getElementById('step1-error').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('step1-error').classList.add('hidden');
+            openModal(1);
+        }
+
+        function openModal(target) {
+            activeTargetStep = target;
+            const modal = document.getElementById('password-modal');
+            document.getElementById('modal-desc').innerText = target === 1 ? "선생님께 1단계 확인을 받으세요." : "활동 마무리 확인을 받으세요.";
+            modal.classList.remove('hidden');
+            document.getElementById('pw-input').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('password-modal').classList.add('hidden');
+            document.getElementById('pw-input').value = '';
+            document.getElementById('pw-error').classList.add('hidden');
+        }
+
+        function verifyPassword() {
+            const input = document.getElementById('pw-input').value;
+            
+            if (input === PW_CHEAT_3) {
+                closeModal();
+                goToStep(3);
+                return;
+            }
+
+            const target = activeTargetStep === 1 ? PW_STEP_1 : PW_STEP_2;
+            if (input === target) {
+                closeModal();
+                goToStep(activeTargetStep === 1 ? 2 : 3);
+            } else {
+                document.getElementById('pw-error').classList.remove('hidden');
+                document.getElementById('pw-input').value = '';
+            }
+        }
+
+        function initStep1() {
+            const container = document.getElementById('review-container');
+            container.innerHTML = '<p class="text-center text-gray-300 text-xs py-5 col-span-2 pointer-events-none">모든 리뷰가 분류되었습니다.</p>';
+            reviews.sort(() => Math.random() - 0.5).forEach(review => {
+                const card = document.createElement('div');
+                card.id = `review-${review.id}`;
+                card.dataset.title = review.title;
+                card.dataset.icon = review.icon;
+                card.className = "review-card bg-white p-5 rounded-2xl border-2 border-gray-100 shadow-sm text-gray-700 hover:border-indigo-200 transition-all";
+                card.draggable = true;
+                card.innerHTML = `<div class="flex items-center mb-2 pointer-events-none"><span class="text-2xl mr-2">${review.icon}</span><strong class="text-indigo-900 font-bold text-[16px]">${review.title}</strong></div><div class="text-[14px] text-gray-600 leading-normal pointer-events-none">${review.text}</div>`;
+                card.addEventListener('dragstart', drag);
+                card.addEventListener('click', () => {
+                    const groupA = document.getElementById('group-a');
+                    const groupB = document.getElementById('group-b');
+                    if (card.parentElement === container) groupA.appendChild(card);
+                    else if (card.parentElement === groupA) groupB.appendChild(card);
+                    else container.appendChild(card);
+                    updateEmptyStatus();
+                });
+                container.appendChild(card);
+            });
+            updateEmptyStatus();
+
+            const adList = document.getElementById('train-list-ad');
+            const realList = document.getElementById('train-list-real');
+            reviews.forEach(r => {
+                const tag = document.createElement('span');
+                tag.className = `px-2 py-1 rounded text-[11px] font-bold m-0.5 ${r.type === '리뷰형 광고' ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`;
+                tag.innerText = `${r.icon} ${r.title}`;
+                if (r.type === '리뷰형 광고') adList.appendChild(tag);
+                else realList.appendChild(tag);
+            });
+        }
+
+        function goToStep(step) {
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.querySelectorAll('[id$="-indicator"]').forEach(i => {
+                i.classList.replace('text-indigo-600', 'text-gray-400');
+                i.querySelector('span').classList.replace('bg-indigo-600', 'bg-gray-300');
+                i.querySelector('span').classList.remove('shadow-md');
+            });
+            document.getElementById(`section-${step}`).classList.remove('hidden');
+            const ind = document.getElementById(`step-${step}-indicator`);
+            ind.classList.replace('text-gray-400', 'text-indigo-600');
+            ind.querySelector('span').classList.replace('bg-gray-300', 'bg-indigo-600');
+            ind.querySelector('span').classList.add('shadow-md');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (step === 2) showNextTest();
+            if (step === 3) generateReport();
+        }
+
+        function showNextTest() {
+            if (currentTestIdx >= testData.length) {
+                document.getElementById('test-container').classList.add('hidden');
+                document.getElementById('result-area').classList.remove('hidden');
+                document.getElementById('final-score').innerText = `테스트 결과: ${testData.length}개 중 ${score}개 정답`;
+                return;
+            }
+            const data = testData[currentTestIdx];
+            document.getElementById('reason-input').value = '';
+            document.getElementById('active-test-card').innerHTML = `
+                <div class="bg-white p-6 rounded-[2rem] border-4 border-indigo-50 shadow-xl text-gray-800 animate-fadeIn">
+                    <div class="flex items-center mb-3">
+                        <span class="text-3xl mr-3">${data.icon}</span>
+                        <strong class="text-indigo-800 text-xl font-bold">${data.title}</strong>
+                    </div>
+                    <p class="bg-indigo-50/50 p-4 rounded-xl text-md italic leading-snug">"${data.text}"</p>
+                </div>
+            `;
+        }
+
+        function checkAnswer(choice) {
+            const reason = document.getElementById('reason-input').value.trim();
+            if (!reason) return alert("분류 이유를 작성해주세요.");
+            const correct = testData[currentTestIdx].answer === choice;
+            if (correct) score++;
+            classificationResults.push({ item: testData[currentTestIdx].title, choice, correct, reason });
+            const card = document.querySelector('#active-test-card div');
+            card.classList.add(correct ? 'correct' : 'wrong');
+            card.innerHTML += `<div class='mt-4 font-bold text-center animate-fadeIn ${correct ? 'text-emerald-600' : 'text-rose-600'}'>${correct ? '정답입니다!' : '오답입니다. (정답: ' + testData[currentTestIdx].answer + ')'}</div>`;
+            document.querySelectorAll('#btn-group-1, #btn-group-2').forEach(b => b.disabled = true);
+            setTimeout(() => {
+                currentTestIdx++;
+                document.querySelectorAll('#btn-group-1, #btn-group-2').forEach(b => b.disabled = false);
+                showNextTest();
+            }, 1500);
+        }
+
+        function generateReport() {
+            document.getElementById('report-a-name').innerText = document.getElementById('group-a-name').value || "미지정";
+            document.getElementById('report-b-name').innerText = document.getElementById('group-b-name').value || "미지정";
+            document.getElementById('report-a-desc').innerText = document.getElementById('group-a-desc').value || "작성된 특징이 없습니다.";
+            document.getElementById('report-b-desc').innerText = document.getElementById('group-b-desc').value || "작성된 특징이 없습니다.";
+
+            ['a', 'b'].forEach(g => {
+                const list = document.getElementById(`report-${g}-list`);
+                list.innerHTML = '';
+                document.querySelectorAll(`#group-${g} .review-card`).forEach(c => {
+                    const s = document.createElement('span');
+                    s.className = "bg-white/20 px-2 py-0.5 rounded text-[10px] border border-white/10 m-0.5";
+                    s.innerText = c.dataset.title;
+                    list.appendChild(s);
+                });
+            });
+
+            document.getElementById('report-classification-list').innerHTML = classificationResults.length > 0 ? 
+                classificationResults.map(r => `
+                <div class="bg-indigo-700/20 p-3 rounded-xl border border-indigo-300/30">
+                    <p class="font-bold flex justify-between">
+                        <span>${r.item} → ${r.choice}</span>
+                        <span class="${r.correct ? 'text-emerald-300' : 'text-rose-300'}">${r.correct ? '✅ 정답' : '❌ 오답'}</span>
+                    </p>
+                    <p class="text-[11px] mt-1 text-indigo-100 opacity-90 italic">근거: ${r.reason}</p>
+                </div>
+            `).join('') : '<p class="text-indigo-200 text-xs italic">2단계 활동 데이터가 없습니다.</p>';
+        }
+
+        window.onload = initStep1;
+    </script>
+</body>
+</html>
