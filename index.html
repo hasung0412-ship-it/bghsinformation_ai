@@ -289,19 +289,39 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div class="bg-white border-2 border-rose-100 rounded-3xl overflow-hidden shadow-sm">
-                        <div class="bg-rose-100 px-5 py-3 border-b border-rose-200">
-                            <h3 class="font-bold text-rose-800 text-sm">📍 리뷰형 광고의 특징</h3>
+                    <div class="bg-white border-2 border-purple-100 rounded-3xl overflow-hidden shadow-sm">
+                        <div class="bg-purple-100 px-5 py-3 border-b border-purple-200">
+                            <h3 class="font-bold text-purple-800 text-sm">📍 분류 기준 특징</h3>
                         </div>
-                        <div class="p-4 space-y-2">
-                            <div class="mapping-item p-3 text-[13px] text-gray-700 bg-rose-50/50 rounded-xl" onclick="handleMapping(this, 'feature')">
-                                [특징] 제품 구매를 위한 여러 개의 기준 제시
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4">
+                            <div class="bg-rose-50/50 border border-rose-100 rounded-2xl p-3">
+                                <h4 class="font-bold text-rose-800 text-xs mb-3">리뷰형 광고</h4>
+                                <div class="space-y-2">
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-rose-100" data-label="리뷰형 광고" onclick="handleMapping(this, 'feature')">
+                                        [특징] 제품 구매를 위한 여러 개의 기준 제시
+                                    </div>
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-rose-100" data-label="리뷰형 광고" onclick="handleMapping(this, 'feature')">
+                                        [특징] 여러 개의 제품을 비교함
+                                    </div>
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-rose-100" data-label="리뷰형 광고" onclick="handleMapping(this, 'feature')">
+                                        [특징] 외부 사이트 링크 포함 가능성
+                                    </div>
+                                </div>
                             </div>
-                            <div class="mapping-item p-3 text-[13px] text-gray-700 bg-rose-50/50 rounded-xl" onclick="handleMapping(this, 'feature')">
-                                [특징] 여러 개의 제품을 비교함
-                            </div>
-                            <div class="mapping-item p-3 text-[13px] text-gray-700 bg-rose-50/50 rounded-xl" onclick="handleMapping(this, 'feature')">
-                                [특징] 외부 사이트 링크 포함 가능성
+
+                            <div class="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-3">
+                                <h4 class="font-bold text-emerald-800 text-xs mb-3">실제 사용 리뷰</h4>
+                                <div class="space-y-2">
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-emerald-100" data-label="실제 사용 리뷰" onclick="handleMapping(this, 'feature')">
+                                        [특징] 직접 구매하거나 경험한 내용이 드러남
+                                    </div>
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-emerald-100" data-label="실제 사용 리뷰" onclick="handleMapping(this, 'feature')">
+                                        [특징] 개인의 주관적인 느낌이 드러남
+                                    </div>
+                                    <div class="mapping-item p-3 text-[13px] text-gray-700 bg-white rounded-xl border border-emerald-100" data-label="실제 사용 리뷰" onclick="handleMapping(this, 'feature')">
+                                        [특징] 좋은 점과 아쉬운 점이 함께 나타남
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -321,11 +341,11 @@
 
                 <div class="bg-gray-50 border-2 border-gray-200 rounded-[2rem] overflow-hidden mb-8 shadow-inner">
                     <div class="grid grid-cols-2 bg-gray-200 text-center py-4 text-xs font-bold text-gray-700">
-                        <div>그룹의 특징</div>
+                        <div>분류 특징</div>
                         <div>매칭된 본문 문장</div>
                     </div>
                     <div id="mapping-list" class="min-h-[160px] p-6 space-y-3">
-                        <p id="empty-msg" class="text-center text-gray-400 text-sm py-12">좌우 하나씩 터치하여 인공지능이 주목했을 특징을 연결해보세요.</p>
+                        <p id="empty-msg" class="text-center text-gray-400 text-sm py-12">왼쪽의 분류 특징과 오른쪽 본문 문장을 하나씩 터치하여 연결해보세요.</p>
                     </div>
                 </div>
 
@@ -512,12 +532,13 @@
             }
 
             if (selectedFeature && selectedSentence) {
+                const labelTxt = selectedFeature.dataset.label || '분류 특징';
                 const featureTxt = selectedFeature.innerText.replace('[특징] ', '');
                 const sentenceTxt = selectedSentence.innerText;
                 const mappingId = Date.now();
                 
-                createMappingRow(featureTxt, sentenceTxt, mappingId);
-                activityData.step2_5.push({ id: mappingId, feature: featureTxt, sentence: sentenceTxt });
+                createMappingRow(labelTxt, featureTxt, sentenceTxt, mappingId);
+                activityData.step2_5.push({ id: mappingId, label: labelTxt, feature: featureTxt, sentence: sentenceTxt });
 
                 selectedFeature.classList.remove('selected-item');
                 selectedSentence.classList.remove('selected-item');
@@ -526,17 +547,24 @@
             }
         }
 
-        function createMappingRow(feature, sentence, id) {
+        function createMappingRow(label, feature, sentence, id) {
             const list = document.getElementById('mapping-list');
             const empty = document.getElementById('empty-msg');
             if (empty) empty.style.display = 'none';
+
+            const isAd = label === '리뷰형 광고';
+            const labelClass = isAd ? 'bg-rose-100 text-rose-700 border-rose-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200';
+            const featureClass = isAd ? 'bg-rose-50 text-rose-700 border-rose-100' : 'bg-emerald-50 text-emerald-700 border-emerald-100';
 
             const row = document.createElement('div');
             row.id = `mapping-${id}`;
             row.className = "mapping-row grid grid-cols-2 gap-4 text-[11px] border-b border-gray-100 pb-3 animate-fadeIn";
             row.onclick = () => deleteMapping(id);
             row.innerHTML = `
-                <div class="bg-rose-50 p-3 rounded-xl text-rose-700 font-bold border border-rose-100">${feature}</div>
+                <div class="${featureClass} p-3 rounded-xl font-bold border">
+                    <span class="inline-block ${labelClass} text-[9px] px-2 py-0.5 rounded-full border mb-1">${label}</span>
+                    <p>${feature}</p>
+                </div>
                 <div class="bg-indigo-50 p-3 rounded-xl text-indigo-700 italic border border-indigo-100">${sentence}</div>
             `;
             list.appendChild(row);
@@ -553,7 +581,7 @@
         }
 
         function resetMapping() {
-            document.getElementById('mapping-list').innerHTML = '<p id="empty-msg" class="text-center text-gray-400 text-sm py-12">좌우 하나씩 터치하여 인공지능이 주목했을 특징을 연결해보세요.</p>';
+            document.getElementById('mapping-list').innerHTML = '<p id="empty-msg" class="text-center text-gray-400 text-sm py-12">왼쪽의 분류 특징과 오른쪽 본문 문장을 하나씩 터치하여 연결해보세요.</p>';
             activityData.step2_5 = [];
             if (selectedFeature) selectedFeature.classList.remove('selected-item');
             if (selectedSentence) selectedSentence.classList.remove('selected-item');
@@ -664,7 +692,7 @@
                     <div class="bg-white/5 p-4 rounded-xl border border-white/10 space-y-3">
                         ${activityData.step2_5.length > 0 ? activityData.step2_5.map(m => `
                             <div class="flex gap-2 items-start">
-                                <div class="text-[10px] text-rose-300 font-bold bg-rose-500/20 px-2 py-1 rounded min-w-[70px] text-center">${m.feature}</div>
+                                <div class="text-[10px] text-rose-300 font-bold bg-rose-500/20 px-2 py-1 rounded min-w-[70px] text-center">${m.label || '분류 특징'}<br>${m.feature}</div>
                                 <div class="text-[10px] text-indigo-100 italic">"${m.sentence}"</div>
                             </div>
                         `).join('') : '<p class="text-[11px] text-white/40 italic">매핑 기록이 없습니다.</p>'}
